@@ -1,11 +1,20 @@
 package com.example.calorietrack.Presentation
 
+import android.content.Context
 import android.icu.util.Calendar
+import android.util.Log
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import data.datastore.UserProfileKeys
+import data.datastore.dataStore
 import data.datastore.model.UserProfile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-class UserSetupViewModel: ViewModel() {
+class UserSetupViewModel : ViewModel() {
 
     private fun yearToAge(year: Int) : Int {
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)
@@ -75,6 +84,34 @@ class UserSetupViewModel: ViewModel() {
             activityLevel = activityLevel,
             calorieGoal = calorieGoal
         )
+    }
+
+    fun saveAndLogUserProfile(context: Context, profile: UserProfile) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Save to DataStore
+            context.dataStore.edit { prefs ->
+                prefs[UserProfileKeys.GENDER] = profile.gender
+                prefs[UserProfileKeys.AGE] = profile.age
+                prefs[UserProfileKeys.HEIGHT_CM] = profile.heightCm
+                prefs[UserProfileKeys.WEIGHT_KG] = profile.weightKg
+                prefs[UserProfileKeys.ACTIVITY_LEVEL] = profile.activityLevel
+                prefs[UserProfileKeys.CALORIE_GOAL] = profile.calorieGoal
+                prefs[UserProfileKeys.CREATED_AT] = System.currentTimeMillis()
+            }
+
+            // Read back once and log
+            val savedProfile = context.dataStore.data.firstOrNull()?.let { prefs ->
+                UserProfile(
+                    gender = prefs[UserProfileKeys.GENDER] ?: profile.gender,
+                    age = prefs[UserProfileKeys.AGE] ?: profile.age,
+                    heightCm = prefs[UserProfileKeys.HEIGHT_CM] ?: profile.heightCm,
+                    weightKg = prefs[UserProfileKeys.WEIGHT_KG] ?: profile.weightKg,
+                    activityLevel = prefs[UserProfileKeys.ACTIVITY_LEVEL] ?: profile.activityLevel,
+                    calorieGoal = prefs[UserProfileKeys.CALORIE_GOAL] ?: profile.calorieGoal
+                )
+            }
+            Log.d("UserProfile", "Saved profile: $savedProfile")
+        }
     }
 
 }

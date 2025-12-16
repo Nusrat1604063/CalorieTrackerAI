@@ -32,14 +32,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+
 
 @Composable
 fun PersonalDetailsWithProgressScreen(
-    onContinue: () -> Unit = {}
+    onContinue: () -> Unit = {},
+    viewModel: UserSetupViewModel = viewModel()
 ) {
+    var gender by remember { mutableStateOf("") }
+    var year by remember { mutableStateOf<Int?>(null) }
+    var weight by remember { mutableStateOf<Int?>(null) }
+    var height by remember { mutableStateOf("") }
+    var activity by remember { mutableStateOf("") }
     var isFormValid by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -48,7 +57,6 @@ fun PersonalDetailsWithProgressScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // ==================== TOP: Progress Bar (75%) ====================
         Text(
             text = "Progress",
             color = Color(0xFF888888),
@@ -102,16 +110,32 @@ fun PersonalDetailsWithProgressScreen(
         // ==================== MIDDLE: Your existing form ====================
         // Just call your existing full screen here
         UserSetupScreen( onFormValidityChanged = { isFormValid = it },
-            onDataChanged = { gender, year, weight, height, activity ->
-                // store temporarily or pass to ViewModel later
+            onDataChanged = { g, y, w, h, a ->
+                gender = g
+                 year = y
+                weight = w
+                height = h
+                activity = a
+
             })
 
         // ==================== BOTTOM BUTTON ====================
         Spacer(modifier = Modifier.height(80.dp)) // Push button to bottom
 
         Button(
-            onClick = { onContinue() },
             enabled = isFormValid,
+            onClick = {
+                val profile = viewModel.buildUserProfile(
+                    gender = gender,
+                    yearOfBirth = year!!,
+                    heightString = height,
+                    weightKg = weight!!,
+                    activityLevel = activity)
+                //saveUserProfile(context, profile)
+                viewModel.saveAndLogUserProfile(context, profile)
+
+                onContinue()        //trigger navigatiopn
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(40.dp)
@@ -121,7 +145,7 @@ fun PersonalDetailsWithProgressScreen(
                 containerColor = if (isFormValid)
                     Color(0xFF0B6623)
                 else
-                    Color(0xFF0B6623).copy(alpha = 0.4f),
+                    Color(0xFF0B6623).copy(alpha = 0.5f),
                 contentColor = Color.White
             ),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
