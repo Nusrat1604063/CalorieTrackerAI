@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.calorietrack.Navigation.AppNavHost
+import com.example.calorietrack.Presentation.HomeScreen
 import com.example.calorietrack.ui.theme.CalorieTrackTheme
 
 class MainActivity : ComponentActivity() {
@@ -20,7 +21,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             CalorieTrackTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AppNavHost()
+                    //AppNavHost()
+                    HomeScreen()
 
 
                 }
