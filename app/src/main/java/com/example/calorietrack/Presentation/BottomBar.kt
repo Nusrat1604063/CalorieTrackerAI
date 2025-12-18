@@ -42,7 +42,7 @@ fun FloatingBottomBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 20.dp, vertical = 3.dp)
     ) {
         Card(
             shape = RoundedCornerShape(32.dp),

@@ -42,7 +42,7 @@ fun HomeScreen() {
             Spacer(modifier = Modifier.height(5.dp))
             HelloThereCard()
             DailySummaryCard()
-            WaterIntakeCard()
+            WaterIntakeCard2()
             MealScansCard()
             // More cards...
         }
@@ -77,7 +77,7 @@ fun HelloThereCard() {
             ) {
                 Text(
                     text = "Hello there",
-                    fontSize = 28.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                     letterSpacing = 0.5.sp
@@ -93,12 +93,12 @@ fun HelloThereCard() {
             // Today's date
             Text(
                 text = "Tuesday, December 16",
-                fontSize = 18.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFFB2DFDB), // Soft light green for secondary text
             )
 
-            Spacer(modifier = Modifier.height(32.dp)) // Your requested gap
+            Spacer(modifier = Modifier.height(15.dp)) // Your requested gap
 
             // Month + Year with dropdown
             Row(
@@ -108,7 +108,7 @@ fun HelloThereCard() {
             ) {
                 Text(
                     text = "December 2025",
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFFB2DFDB)
                 )
@@ -116,11 +116,11 @@ fun HelloThereCard() {
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
                     tint = Color(0xFFB2DFDB),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Calendar row - days 15 to 21 (Dec 15 Mon → Dec 21 Sun)
             Row(
@@ -137,7 +137,7 @@ fun HelloThereCard() {
                     ) {
                         Text(
                             text = weekdays[index],
-                            fontSize = 12.sp,
+                            fontSize = 10.sp,
                             color = if (index == 1) Color(0xFF4DB6AC) else Color(0xFF80CBC4), // Highlight Tue
                         )
                         Spacer(modifier = Modifier.height(6.dp))
@@ -152,7 +152,7 @@ fun HelloThereCard() {
                         ) {
                             Text(
                                 text = day,
-                                fontSize = 16.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
