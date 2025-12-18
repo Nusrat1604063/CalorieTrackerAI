@@ -71,12 +71,12 @@ fun WaterIntakeCard() {
                 Icon(Icons.Default.LocalDrink, null, tint = Color(0xFF60A5FA), modifier = Modifier.size(28.dp))
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text("Water Intake", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Water Intake", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                     Text("Recommended: $goalGlasses glasses", fontSize = 14.sp, color = Color(0xFFB3E5FC))
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
             // Glass icons row
             Row(
@@ -100,7 +100,7 @@ fun WaterIntakeCard() {
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(10.dp))
 
             Text(
                 text = "Taken: $glassesTaken / $goalGlasses glasses",
@@ -116,7 +116,7 @@ fun WaterIntakeCard() {
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
             // Intake button – direct increment here
             Button(
@@ -132,11 +132,11 @@ fun WaterIntakeCard() {
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(40.dp),
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
                 Text("Intake +1 Glass", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }

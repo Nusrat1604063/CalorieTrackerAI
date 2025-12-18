@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -16,22 +15,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.getValue
-import com.example.calorietrack.ui.theme.GreenDark
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import androidx.compose.runtime.getValue
+
 import androidx.compose.runtime.setValue
 
 
@@ -96,7 +88,7 @@ fun HelloThereCard() {
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             // Today's date
             Text(
@@ -171,6 +163,7 @@ fun HelloThereCard() {
         }
     }
 }
+
 //#35554F -- calm Sage Teal
 @Composable
 fun DailySummaryCard() {
@@ -218,13 +211,11 @@ fun DailySummaryCard() {
                             style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                         )
 
-                        // Red progress arc – now starts from right (0°) clockwise
-                        // This makes the unfilled (gray) gap appear on the right side, centered vertically
                         val progress = 0.76f // Adjust as needed (e.g., 76% consumed → 24% left)
                         drawArc(
-                            color = Color(0xFFFF6B6B), // Solid red – change to gradient if you want
-                            startAngle = 30f,                  // Start at 3 o'clock (right)
-                            sweepAngle = 360f * progress,     // Sweep clockwise
+                            color = Color(0xFFFF6B6B),
+                            startAngle = 30f,
+                            sweepAngle = 360f * progress,
                             useCenter = false,
                             style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                         )

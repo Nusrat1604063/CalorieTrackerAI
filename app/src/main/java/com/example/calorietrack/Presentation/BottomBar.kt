@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -46,7 +47,7 @@ fun FloatingBottomBar(
         Card(
             shape = RoundedCornerShape(32.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF2E5C56).copy(alpha = 0.95f) // ← Soft green container
+                containerColor = Color(0xFF2E5C56).copy(alpha = 0.9f) // ← Soft green container
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
             modifier = Modifier
@@ -73,7 +74,7 @@ fun FloatingBottomBar(
                     tab = BottomBarTab.Scan,
                     selected = selectedTab == BottomBarTab.Scan,
                     onClick = { onTabSelected(BottomBarTab.Scan) },
-                    icon = Icons.Filled.AddCircle,
+                    icon = Icons.Filled.PhotoCamera,
                     label = "Scan",
                     isHighlighted = true
                 )
