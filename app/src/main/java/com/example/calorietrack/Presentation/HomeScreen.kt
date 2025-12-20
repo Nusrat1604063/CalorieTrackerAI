@@ -26,10 +26,24 @@ import androidx.compose.runtime.getValue
 
 import androidx.compose.runtime.setValue
 
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
 
+import android.Manifest
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.google.accompanist.permissions.shouldShowRationale
+
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onNavigateToCamera: () -> Unit) {
     var selectedTab by remember { mutableStateOf(BottomBarTab.Home) }
+    val context = LocalContext.current
+
+    val cameraPermissionState = rememberPermissionState(
+        permission = android.Manifest.permission.CAMERA
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -37,19 +51,33 @@ fun HomeScreen() {
                 .fillMaxSize()
                 .background(Color.Black)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 100.dp) // ← Increased: always space below last card
+                .padding(bottom = 100.dp)
         ) {
             Spacer(modifier = Modifier.height(5.dp))
             HelloThereCard()
             DailySummaryCard()
             WaterIntakeCard2()
             MealScansCard()
-            // More cards...
         }
 
         FloatingBottomBar(
             selectedTab = selectedTab,
-            onTabSelected = { selectedTab = it },
+            onTabSelected = { tab ->
+                selectedTab = tab
+
+                if (tab == BottomBarTab.Scan) {
+                    if (cameraPermissionState.status.isGranted) {
+                        onNavigateToCamera()
+                        // Permission granted → open camera
+                        // TODO: Navigate to camera screen here
+                        // e.g., Toast.makeText(LocalContext.current, "Opening camera...", Toast.LENGTH_SHORT).show()
+                    } else {
+                        // Always launch request → system popup appears
+                        Toast.makeText(context, "Requesting camera permission...", Toast.LENGTH_SHORT).show()
+                        cameraPermissionState.launchPermissionRequest()
+                    }
+                }
+            },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
@@ -305,5 +333,5 @@ fun ShowScreenHome() {
    //GreetingCard()
    // HelloThereCard()
     //DailySummaryCard()
-    HomeScreen()
+    //HomeScreen()
 }

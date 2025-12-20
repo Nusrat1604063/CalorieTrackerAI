@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.calorietrack.R
 import data.datastore.AppPreferences
-import data.datastore.AppPreferences.SETUP_DONE
 import data.datastore.dataStore
 import data.datastore.setupCompleted
 import kotlinx.coroutines.CoroutineScope
@@ -54,7 +53,6 @@ fun AllSetScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // ==================== TOP: Progress Bar (75%) ====================
         Text(
             text = "Launching",
             color = Color(0xFF888888),
@@ -119,13 +117,7 @@ fun AllSetScreen(
             color = Color(0xFF2E7D32),
             fontWeight = FontWeight.Medium
         )
-//        Text(
-//            text = "CalorieTrack AI",
-//            fontSize = 22.sp,
-//            fontWeight = FontWeight.Bold,
-//            color = Color(0xFF2E7D32)
-//        )
-//
+
        Spacer(modifier = Modifier.height(40.dp))
         Column(modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally) {
@@ -156,18 +148,14 @@ fun AllSetScreen(
 
 
         Spacer(modifier = Modifier.height(240.dp))
-
-
-        // ==================== BOTTOM BUTTON ====================
-      // Push button to bottom
-
-        Button(
+                Button(
             onClick = {
                 CoroutineScope(Dispatchers.IO).launch {
                    setupCompleted(context)
                     val value = context.dataStore.data.first()[AppPreferences.SETUP_DONE]
                     Log.d("DataStore", "setup_done = $value")
                 }
+                onContinue()
             },
             modifier = Modifier
                 .fillMaxWidth()

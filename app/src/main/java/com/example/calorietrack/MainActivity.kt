@@ -1,6 +1,8 @@
 package com.example.calorietrack
 
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -11,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.calorietrack.Navigation.AppNavHost
+import com.example.calorietrack.Presentation.CameraScreen
 import com.example.calorietrack.Presentation.HomeScreen
 import com.example.calorietrack.ui.theme.CalorieTrackTheme
 
@@ -21,8 +24,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             CalorieTrackTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    //AppNavHost()
-                    HomeScreen()
+                    AppNavHost()
+                   //HomeScreen()
+//                    CameraScreen(onBack = {},
+//                        onPhotoCaptured = { savedUri : Uri ->
+//                            Log.d("Camera", "Photo saved at: $savedUri")
+//                        }
+//                        )
 
 
                 }

@@ -1,5 +1,6 @@
 package com.example.calorietrack.Navigation
 
+import android.util.Log
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
@@ -7,6 +8,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.calorietrack.Presentation.AllSetScreen
+import com.example.calorietrack.Presentation.CameraScreen
+import com.example.calorietrack.Presentation.HomeScreen
 import com.example.calorietrack.Presentation.LaunchScreenTwo
 import com.example.calorietrack.Presentation.PersonalDetailsWithProgressScreen
 import com.example.calorietrack.Presentation.ScreenOneMain
@@ -53,18 +56,28 @@ fun AppNavHost() {
 
         }
 
+        composable(AppScreen.Camera.routes) {
+            CameraScreen(
+                onBack = { navController.popBackStack() }
+
+            )
+        }
+
+
         composable(AppScreen.AllSet.routes) {
             AllSetScreen(
                 onContinue = {
-
+                    navController.navigate(AppScreen.Home.routes)
                 }
             )
         }
 
-        /*
-          composable(AppScreen.Home.route) {
-            HomeScreen()
+
+          composable(AppScreen.Home.routes) {
+            HomeScreen(onNavigateToCamera = {
+                navController.navigate(AppScreen.Camera.routes)
+            })
         }
-         */
+
     }
 }
