@@ -67,6 +67,10 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+
 
 
 }

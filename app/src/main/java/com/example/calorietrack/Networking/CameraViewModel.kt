@@ -3,66 +3,73 @@ package com.example.calorietrack.Networking
 import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
-import okhttp3.MultipartBody
-import java.io.File
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.asRequestBody
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.label.ImageLabeling
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import androidx.compose.runtime.State
 
 
 class CameraViewModel : ViewModel() {
+
+    private val labeler = ImageLabeling.getClient(
+        ImageLabelerOptions.Builder()
+            .setConfidenceThreshold(0.5f)
+            .build()
+    )
+
     private val _uiState = mutableStateOf<CameraUiState>(CameraUiState.Idle)
     val uiState: State<CameraUiState> = _uiState
 
-    fun analyzePhoto(uri: Uri) {
-        viewModelScope.launch {
-            _uiState.value = CameraUiState.Loading
+    fun detectFoodFromImage(image: InputImage, photoUri: Uri) {
+        _uiState.value = CameraUiState.Loading
 
-            try {
-                val file = File(uri.path!!)
-                val requestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
-                val imagePart = MultipartBody.Part.createFormData("image", file.name, requestBody)
+        labeler.process(image)
+            .addOnSuccessListener { labels ->
 
-                val response = EdamamClient.api.analyzeFoodImage(
-                    appId = "com.example.calorietrack",
-                    appKey = "YOUR_APP_KEY",
-                    image = imagePart
-                )
+                // DEBUG: see what ML Kit actually detects
+                labels.forEach {
+                    android.util.Log.d("ML", "${it.text} -> ${it.confidence}")
+                }
 
-                val food = response.parsed.firstOrNull()?.food
-                    ?: response.hints.firstOrNull()?.food
+                val bestLabel = labels
+                    .filter { it.confidence >= 0.6f }
+                    .firstOrNull {
+                        it.text.lowercase() !in listOf("food", "dish", "meal", "tableware")
+                    }
 
-                if (food != null) {
-                    _uiState.value = CameraUiState.Success(
-                        photoUri = uri,
-                        foodName = food.label,
-                        calories = food.nutrients?.ENERC_KCAL ?: 0.0,
-                        protein = food.nutrients?.PROCNT ?: 0.0,
-                        fat = food.nutrients?.FAT ?: 0.0,
-                        carbs = food.nutrients?.CHOCDF ?: 0.0
+                if (bestLabel != null) {
+                    _uiState.value = CameraUiState.FoodDetected(
+                        photoUri = photoUri,
+                        foodName = bestLabel.text,
+                        confidence = bestLabel.confidence
                     )
                 } else {
                     _uiState.value = CameraUiState.Error("No food detected")
                 }
-            } catch (e: Exception) {
-                _uiState.value = CameraUiState.Error("Analysis failed: ${e.message}")
             }
-        }
+            .addOnFailureListener {
+                _uiState.value = CameraUiState.Error("ML Kit failed")
+            }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        labeler.close()
     }
 }
+
+
+
 
 sealed class CameraUiState {
     object Idle : CameraUiState()
     object Loading : CameraUiState()
-    data class Success(
+
+    data class FoodDetected(
         val photoUri: Uri,
         val foodName: String,
-        val calories: Double,
-        val protein: Double,
-        val fat: Double,
-        val carbs: Double
+        val confidence: Float
     ) : CameraUiState()
+
     data class Error(val message: String) : CameraUiState()
 }
