@@ -1,5 +1,6 @@
 package com.example.calorietrack.Navigation
 
+import CameraScreen
 import android.util.Log
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
@@ -8,7 +9,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.calorietrack.Presentation.AllSetScreen
-import com.example.calorietrack.Presentation.CameraScreen
 import com.example.calorietrack.Presentation.HomeScreen
 import com.example.calorietrack.Presentation.LaunchScreenTwo
 import com.example.calorietrack.Presentation.PersonalDetailsWithProgressScreen

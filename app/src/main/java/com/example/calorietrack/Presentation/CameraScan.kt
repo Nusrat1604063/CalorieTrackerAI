@@ -1,5 +1,3 @@
-package com.example.calorietrack.Presentation
-
 import android.net.Uri
 import android.util.Log
 import androidx.camera.core.CameraSelector
@@ -8,116 +6,196 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.material3.Icon
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
 import com.example.calorietrack.Networking.CameraUiState
 import com.example.calorietrack.Networking.CameraViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.mlkit.vision.common.InputImage
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import java.io.File
-import coil.compose.rememberAsyncImagePainter
-
-
-
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CameraScreen(
-    viewModel: CameraViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
-    onBack: () -> Unit
+    viewModel: CameraViewModel = viewModel(),
+    onBack: () -> Unit = {}  // You had this parameter but didn't use it — added default
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val uiState by viewModel.uiState
+    val uiState by viewModel.uiState.collectAsState()
 
-    val previewView = remember { PreviewView(context) }
+    val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
+
+    val previewView = remember {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FILL_CENTER  // Optional: better fit
+        }
+    }
+
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
 
-    // Bind CameraX
     LaunchedEffect(Unit) {
-        val cameraProvider = ProcessCameraProvider.getInstance(context).get()
-
-        val preview = Preview.Builder().build().also {
-            it.setSurfaceProvider(previewView.surfaceProvider)
+        if (!cameraPermissionState.status.isGranted) {
+            cameraPermissionState.launchPermissionRequest()
         }
-
-        imageCapture = ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .build()
-
-        cameraProvider.unbindAll()
-        cameraProvider.bindToLifecycle(
-            lifecycleOwner,
-            CameraSelector.DEFAULT_BACK_CAMERA,
-            preview,
-            imageCapture
-        )
     }
+
+    if (!cameraPermissionState.status.isGranted) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Camera permission required", color = Color.White)
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
+                    Text("Grant Permission")
+                }
+            }
+        }
+        return  // Don't show camera UI until granted
+    }
+
+
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // 🔹 Freeze-frame when food detected
+        // 1. Background: Live preview or captured photo
         if (uiState is CameraUiState.FoodDetected) {
-            Image(
-                painter = rememberAsyncImagePainter(
-                    (uiState as CameraUiState.FoodDetected).photoUri
-                ),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            val detections = (uiState as CameraUiState.FoodDetected).detections
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                Image(
+                    painter = rememberAsyncImagePainter((uiState as CameraUiState.FoodDetected).photoUri),
+                    contentDescription = "Captured food photo",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+
+                // Placeholder for future bounding boxes
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    // TODO: Draw bounding boxes and labels here later
+                }
+
+                // List of detected foods
+                LazyColumn(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(16.dp)
+                ) {
+                    item {
+                        Text(
+                            "Detected Foods:",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+                    items(detections) { food ->
+                        Text(
+                            "• ${food.label} (${(food.confidence * 100).toInt()}% confidence)",
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                    }
+                    if (detections.isEmpty()) {
+                        item {
+                            Text("No food detected", color = Color.Gray)
+                        }
+                    }
+                }
+            }
         } else {
             AndroidView(
-                factory = { previewView },
+                factory = { ctx ->
+                    previewView.apply {
+                        post {
+                            val cameraProviderFuture =
+                                ProcessCameraProvider.getInstance(ctx)
+
+                            cameraProviderFuture.addListener({
+                                val cameraProvider = cameraProviderFuture.get()
+
+                                val preview = Preview.Builder().build().also {
+                                    it.setSurfaceProvider(surfaceProvider)
+                                }
+
+                                imageCapture = ImageCapture.Builder()
+                                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                                    .build()
+
+                                try {
+                                    cameraProvider.unbindAll()
+                                    cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        CameraSelector.DEFAULT_BACK_CAMERA,
+                                        preview,
+                                        imageCapture
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e("Camera", "Camera bind failed", e)
+                                }
+                            }, ContextCompat.getMainExecutor(ctx))
+                        }
+                    }
+                },
                 modifier = Modifier.fillMaxSize()
             )
         }
 
-        // Dark overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
-        )
+//        // 2. Dark tint overlay
+//        Box(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .background(Color.Black.copy(alpha = 0.35f))
+//        )
 
-        // Center guide
+        // 3. Center guide box
         Box(
             modifier = Modifier
                 .size(300.dp)
@@ -127,11 +205,13 @@ fun CameraScreen(
             Text(
                 text = "Place food here",
                 color = Color.White,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
+                fontSize = 18.sp,
+                textAlign = TextAlign.Center
             )
         }
 
-        // Capture button
+        // 4. Capture button
         IconButton(
             onClick = {
                 val capture = imageCapture ?: return@IconButton
@@ -145,25 +225,20 @@ fun CameraScreen(
                     ImageCapture.OutputFileOptions.Builder(file).build(),
                     ContextCompat.getMainExecutor(context),
                     object : ImageCapture.OnImageSavedCallback {
-
                         override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                            android.util.Log.d(
-                                "Camera",
-                                "Captured: exists=${file.exists()} size=${file.length()}"
+                            Log.d("Camera", "Photo saved: ${file.absolutePath}")
+
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file
                             )
 
-                            val uri = Uri.fromFile(file)
-                            val inputImage =
-                                InputImage.fromFilePath(context, uri)
-
-                            viewModel.detectFoodFromImage(
-                                image = inputImage,
-                                photoUri = uri
-                            )
+                            viewModel.detectFoodFromImage(context = context, photoUri = uri)
                         }
 
                         override fun onError(exc: ImageCaptureException) {
-                            android.util.Log.e("Camera", exc.message ?: "Capture error")
+                            Log.e("Camera", "Capture failed: ${exc.message}", exc)
                         }
                     }
                 )
@@ -174,10 +249,15 @@ fun CameraScreen(
                 .size(80.dp)
                 .background(Color(0xFF81C784), CircleShape)
         ) {
-            Icon(Icons.Default.PhotoCamera, null, tint = Color.White, modifier = Modifier.size(36.dp))
+            Icon(
+                Icons.Default.PhotoCamera,
+                contentDescription = "Take photo",
+                tint = Color.White,
+                modifier = Modifier.size(36.dp)
+            )
         }
 
-        // Loading
+        // 5. Loading overlay
         if (uiState is CameraUiState.Loading) {
             Box(
                 modifier = Modifier
@@ -188,12 +268,12 @@ fun CameraScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White)
                     Spacer(Modifier.height(12.dp))
-                    Text("Analyzing food...", color = Color.White)
+                    Text("Analyzing food...", color = Color.White, fontSize = 18.sp)
                 }
             }
         }
 
-        // Error
+        // 6. Error overlay
         if (uiState is CameraUiState.Error) {
             Box(
                 modifier = Modifier
@@ -204,11 +284,11 @@ fun CameraScreen(
                 Text(
                     text = (uiState as CameraUiState.Error).message,
                     color = Color.Red,
-                    modifier = Modifier.padding(24.dp),
+                    fontSize = 18.sp,
+                    modifier = Modifier.padding(32.dp),
                     textAlign = TextAlign.Center
                 )
             }
         }
     }
 }
-
