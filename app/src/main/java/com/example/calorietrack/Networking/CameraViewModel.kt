@@ -16,12 +16,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.File
+import java.io.FileOutputStream
 
 class CameraViewModel : ViewModel() {
 
@@ -42,7 +46,7 @@ class CameraViewModel : ViewModel() {
             }
 
             val results = withContext(Dispatchers.IO) {
-                runClarifaiModel(bitmap)
+                runFoodRecognitionModel(context, bitmap)
             }
 
             if (results.isEmpty()) {
@@ -53,73 +57,80 @@ class CameraViewModel : ViewModel() {
         }
     }
 
-
-    private suspend fun runClarifaiModel(bitmap: Bitmap): List<DetectedFood> {
+    private suspend fun runFoodRecognitionModel(context: Context, originalBitmap: Bitmap): List<DetectedFood> {
         return try {
             val client = OkHttpClient.Builder()
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()
-                        .addHeader("Authorization", "Key 3d09102543da4a94b05612422ab40fdc")  // Replace with your actual PAT
+                        .addHeader("Authorization", "Bearer 71b8ee56a61eb39f7eaabe0a37f6487c1ed716e1")  // ← Replace with your token
                         .build()
                     chain.proceed(request)
                 }
                 .build()
+
             val retrofit = Retrofit.Builder()
-                .baseUrl("https://api.clarifai.com/v2/users/clarifai/apps/main/")
+                .baseUrl("https://api.logmeal.es/")
                 .client(client)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
-            val service = retrofit.create(ClarifaiApi::class.java)
 
-            // Resize image
-            val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 224, 224, true)
-            val base64Image = bitmapToBase64(resizedBitmap)
+            val service = retrofit.create(LogMealApi::class.java)
 
-            // Build JSON request correctly
-            val json = """
-        {
-          "inputs": [
-            {
-              "data": {
-                "image": {
-                  "base64": "$base64Image"
-                }
-              }
+            // Resize and compress to stay under 1MB (LogMeal limit)
+            val resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 800, 800, true)
+
+            val tempFile = File(context.cacheDir, "temp_food_small.jpg")
+            val outputStream = FileOutputStream(tempFile)
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)  // 85% quality
+            outputStream.flush()
+            outputStream.close()
+
+            // Safety check: if still >1MB, reduce quality further
+            var quality = 80
+            while (tempFile.length() > 1048576 && quality > 20) {
+                quality -= 10
+                resizedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, FileOutputStream(tempFile))
             }
-          ]
-        }
-        """.trimIndent()
 
-            val requestBody = json.toRequestBody("application/json".toMediaType())
+            Log.d("LOGMEAL", "Final image size: ${tempFile.length()} bytes")
 
-            // Make API call with PAT in header
-            val response = service.detectFood(requestBody)
+            val requestFile = tempFile.asRequestBody("image/jpeg".toMediaType())
+            val body = MultipartBody.Part.createFormData("image", tempFile.name, requestFile)
 
-            val confidenceThreshold = 0.25f
+            val response = service.detectFood(body)
+
+            val confidenceThreshold = 0.1f
             val results = mutableListOf<DetectedFood>()
-            response.outputs.firstOrNull()?.data?.concepts?.forEach { concept ->
-                if (concept.value >= confidenceThreshold) {
-                    results.add(DetectedFood(label = concept.name, confidence = concept.value))
+
+            response.segmentation_results?.forEach { segment ->
+                segment.recognition_results?.forEach { item ->
+                    val prob = item.prob ?: 0f
+                    if (prob >= confidenceThreshold) {
+                        results.add(DetectedFood(label = item.name ?: "Unknown food", confidence = prob))
+                    }
                 }
             }
-            results
+
+            if (results.isEmpty()) {
+                response.recognition_results?.forEach { item ->
+                    val prob = item.prob ?: 0f
+                    if (prob >= confidenceThreshold) {
+                        results.add(DetectedFood(label = item.name ?: "Unknown food", confidence = prob))
+                    }
+                }
+            }
+
+            results.sortedByDescending { it.confidence }
         } catch (e: retrofit2.HttpException) {
-            Log.e("CLARIFAI_ERROR", "HTTP ${e.code()} - ${e.message()}")
+            val errorBody = e.response()?.errorBody()?.string() ?: "Unknown"
+            Log.e("LOGMEAL_ERROR", "HTTP ${e.code()} - Body: $errorBody")
             emptyList()
         } catch (e: Exception) {
-            Log.e("CLARIFAI_ERROR", e.message ?: "Unknown error", e)
+            Log.e("LOGMEAL_ERROR", e.message ?: "Unknown error", e)
             emptyList()
         }
     }
-
-
-
-
-
-
-
 }
-
 
 // UI State
 sealed class CameraUiState {

@@ -188,12 +188,6 @@ fun CameraScreen(
             )
         }
 
-//        // 2. Dark tint overlay
-//        Box(
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .background(Color.Black.copy(alpha = 0.35f))
-//        )
 
         // 3. Center guide box
         Box(
