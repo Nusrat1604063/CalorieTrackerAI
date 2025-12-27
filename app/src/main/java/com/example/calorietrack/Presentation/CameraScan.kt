@@ -10,8 +10,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -57,8 +59,6 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CameraScreen(
@@ -99,188 +99,228 @@ fun CameraScreen(
         return  // Don't show camera UI until granted
     }
 
-
-
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // 1. Background: Live preview or captured photo
-        if (uiState is CameraUiState.FoodDetected) {
-            val detections = (uiState as CameraUiState.FoodDetected).detections
+        // Background: Live preview, frozen analyzing, or final result
+        when (uiState) {
+            is CameraUiState.FoodDetected -> {
+                val detections = (uiState as CameraUiState.FoodDetected).detections
 
-            Box(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Image(
+                        painter = rememberAsyncImagePainter((uiState as CameraUiState.FoodDetected).photoUri),
+                        contentDescription = "Captured food photo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    // Placeholder for future bounding boxes
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        // TODO: Draw bounding boxes and labels here later
+                    }
+
+                    // Professional results card
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+                            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "Detected Foods",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            detections.forEachIndexed { index, food ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "${index + 1}. ${food.label}",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "${(food.confidence * 100).toInt()}% confidence",
+                                        color = Color(0xFF81C784),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                            if (detections.isEmpty()) {
+                                Text(
+                                    text = "No food detected",
+                                    color = Color.Gray,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            is CameraUiState.FrozenAnalyzing -> {
+                // Frozen photo with "Calculating calories..." spinner
                 Image(
-                    painter = rememberAsyncImagePainter((uiState as CameraUiState.FoodDetected).photoUri),
-                    contentDescription = "Captured food photo",
+                    painter = rememberAsyncImagePainter((uiState as CameraUiState.FrozenAnalyzing).photoUri),
+                    contentDescription = "Analyzing photo",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
 
-                // Placeholder for future bounding boxes
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    // TODO: Draw bounding boxes and labels here later
-                }
-
-                // List of detected foods
-                LazyColumn(
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(16.dp)
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    item {
-                        Text(
-                            "Detected Foods:",
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(
                             color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
+                            strokeWidth = 6.dp
                         )
-                    }
-                    items(detections) { food ->
+                        Spacer(Modifier.height(16.dp))
                         Text(
-                            "• ${food.label} (${(food.confidence * 100).toInt()}% confidence)",
+                            "Calculating calories...",
                             color = Color.White,
-                            fontSize = 16.sp
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium
                         )
-                    }
-                    if (detections.isEmpty()) {
-                        item {
-                            Text("No food detected", color = Color.Gray)
-                        }
                     }
                 }
             }
-        } else {
-            AndroidView(
-                factory = { ctx ->
-                    previewView.apply {
-                        post {
-                            val cameraProviderFuture =
-                                ProcessCameraProvider.getInstance(ctx)
 
-                            cameraProviderFuture.addListener({
-                                val cameraProvider = cameraProviderFuture.get()
-
-                                val preview = Preview.Builder().build().also {
-                                    it.setSurfaceProvider(surfaceProvider)
-                                }
-
-                                imageCapture = ImageCapture.Builder()
-                                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                                    .build()
-
-                                try {
-                                    cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(
-                                        lifecycleOwner,
-                                        CameraSelector.DEFAULT_BACK_CAMERA,
-                                        preview,
-                                        imageCapture
-                                    )
-                                } catch (e: Exception) {
-                                    Log.e("Camera", "Camera bind failed", e)
-                                }
-                            }, ContextCompat.getMainExecutor(ctx))
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-
-        // 3. Center guide box
-        Box(
-            modifier = Modifier
-                .size(300.dp)
-                .align(Alignment.Center)
-                .border(3.dp, Color(0xFF81C784), RoundedCornerShape(28.dp))
-        ) {
-            Text(
-                text = "Place food here",
-                color = Color.White,
-                modifier = Modifier.align(Alignment.Center),
-                fontSize = 18.sp,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        // 4. Capture button
-        IconButton(
-            onClick = {
-                val capture = imageCapture ?: return@IconButton
-
-                val file = File(
-                    context.externalCacheDir,
-                    "food_${System.currentTimeMillis()}.jpg"
-                )
-
-                capture.takePicture(
-                    ImageCapture.OutputFileOptions.Builder(file).build(),
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                            Log.d("Camera", "Photo saved: ${file.absolutePath}")
-
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                file
-                            )
-
-                            viewModel.detectFoodFromImage(context = context, photoUri = uri)
-                        }
-
-                        override fun onError(exc: ImageCaptureException) {
-                            Log.e("Camera", "Capture failed: ${exc.message}", exc)
-                        }
-                    }
-                )
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 40.dp)
-                .size(80.dp)
-                .background(Color(0xFF81C784), CircleShape)
-        ) {
-            Icon(
-                Icons.Default.PhotoCamera,
-                contentDescription = "Take photo",
-                tint = Color.White,
-                modifier = Modifier.size(36.dp)
-            )
-        }
-
-        // 5. Loading overlay
-        if (uiState is CameraUiState.Loading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.White)
-                    Spacer(Modifier.height(12.dp))
-                    Text("Analyzing food...", color = Color.White, fontSize = 18.sp)
+            is CameraUiState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.7f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = (uiState as CameraUiState.Error).message,
+                        color = Color.Red,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(32.dp),
+                        textAlign = TextAlign.Center
+                    )
                 }
+            }
+
+            else -> {
+                // Live camera preview
+                AndroidView(
+                    factory = { ctx ->
+                        previewView.apply {
+                            post {
+                                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                                cameraProviderFuture.addListener({
+                                    val cameraProvider = cameraProviderFuture.get()
+                                    val preview = Preview.Builder().build().also {
+                                        it.setSurfaceProvider(surfaceProvider)
+                                    }
+                                    imageCapture = ImageCapture.Builder()
+                                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                                        .build()
+
+                                    try {
+                                        cameraProvider.unbindAll()
+                                        cameraProvider.bindToLifecycle(
+                                            lifecycleOwner,
+                                            CameraSelector.DEFAULT_BACK_CAMERA,
+                                            preview,
+                                            imageCapture
+                                        )
+                                    } catch (e: Exception) {
+                                        Log.e("Camera", "Camera bind failed", e)
+                                    }
+                                }, ContextCompat.getMainExecutor(ctx))
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
 
-        // 6. Error overlay
-        if (uiState is CameraUiState.Error) {
+        // Center guide box (only during live preview)
+        if (uiState is CameraUiState.Idle) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f)),
-                contentAlignment = Alignment.Center
+                    .size(300.dp)
+                    .align(Alignment.Center)
+                    .border(3.dp, Color(0xFF81C784), RoundedCornerShape(28.dp))
             ) {
                 Text(
-                    text = (uiState as CameraUiState.Error).message,
-                    color = Color.Red,
+                    text = "Place food here",
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.Center),
                     fontSize = 18.sp,
-                    modifier = Modifier.padding(32.dp),
                     textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        // Capture button (only during live preview)
+        if (uiState is CameraUiState.Idle) {
+            IconButton(
+                onClick = {
+                    val capture = imageCapture ?: return@IconButton
+
+                    val file = File(context.externalCacheDir, "food_${System.currentTimeMillis()}.jpg")
+
+                    // Instant freeze on click with "Calculating calories..." spinner
+                    val tempUri = Uri.fromFile(file)  // Temp URI for immediate display
+                    viewModel.freezeImageAndStartAnalyzing(tempUri)
+
+                    capture.takePicture(
+                        ImageCapture.OutputFileOptions.Builder(file).build(),
+                        ContextCompat.getMainExecutor(context),
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                Log.d("Camera", "Photo saved: ${file.absolutePath}")
+
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    file
+                                )
+
+                                // Refresh with real URI (spinner stays until analysis done)
+                                viewModel.freezeImageAndStartAnalyzing(uri)
+                                viewModel.detectFoodFromImage(context = context, photoUri = uri)
+                            }
+
+                            override fun onError(exc: ImageCaptureException) {
+                                Log.e("Camera", "Capture failed: ${exc.message}", exc)
+                                viewModel.setError("Capture failed. Please try again.")
+                            }
+                        }
+                    )
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 40.dp)
+                    .size(80.dp)
+                    .background(Color(0xFF81C784), CircleShape)
+            ) {
+                Icon(
+                    Icons.Default.PhotoCamera,
+                    contentDescription = "Take photo",
+                    tint = Color.White,
+                    modifier = Modifier.size(36.dp)
                 )
             }
         }

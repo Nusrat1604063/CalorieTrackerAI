@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorietrack.utlity.bitmapToBase64
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,14 +35,12 @@ class CameraViewModel : ViewModel() {
 
     fun detectFoodFromImage(context: Context, photoUri: Uri) {
         viewModelScope.launch {
-            _uiState.value = CameraUiState.Loading
-
             val bitmap = withContext(Dispatchers.IO) {
                 BitmapFactory.decodeStream(context.contentResolver.openInputStream(photoUri))
             }
 
             if (bitmap == null) {
-                _uiState.value = CameraUiState.Error("Failed to load image")
+                setError("Failed to load image")
                 return@launch
             }
 
@@ -50,10 +49,14 @@ class CameraViewModel : ViewModel() {
             }
 
             if (results.isEmpty()) {
-                _uiState.value = CameraUiState.Error("No food detected")
-            } else {
-                _uiState.value = CameraUiState.FoodDetected(photoUri, results)
+                setError("No food detected")
+                return@launch
             }
+
+            // Optional: Add delay for longer "Calculating calories..." spinner
+            delay(3000L)  // 3 seconds (adjust or remove as needed)
+
+            _uiState.value = CameraUiState.FoodDetected(photoUri, results)
         }
     }
 
@@ -62,7 +65,7 @@ class CameraViewModel : ViewModel() {
             val client = OkHttpClient.Builder()
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()
-                        .addHeader("Authorization", "Bearer 71b8ee56a61eb39f7eaabe0a37f6487c1ed716e1")  // ← Replace with your token
+                        .addHeader("Authorization", "Bearer d7b92241e3f0b7c1459f99c2a6deaeef8bda2051")  // Your real token
                         .build()
                     chain.proceed(request)
                 }
@@ -76,16 +79,16 @@ class CameraViewModel : ViewModel() {
 
             val service = retrofit.create(LogMealApi::class.java)
 
-            // Resize and compress to stay under 1MB (LogMeal limit)
+            // Resize and compress to stay under 1MB
             val resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 800, 800, true)
 
             val tempFile = File(context.cacheDir, "temp_food_small.jpg")
             val outputStream = FileOutputStream(tempFile)
-            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)  // 85% quality
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
             outputStream.flush()
             outputStream.close()
 
-            // Safety check: if still >1MB, reduce quality further
+            // Reduce quality if still too big
             var quality = 80
             while (tempFile.length() > 1048576 && quality > 20) {
                 quality -= 10
@@ -100,27 +103,41 @@ class CameraViewModel : ViewModel() {
             val response = service.detectFood(body)
 
             val confidenceThreshold = 0.1f
-            val results = mutableListOf<DetectedFood>()
+            val detectionsMap = mutableMapOf<String, DetectedFood>()  // Key: label, Value: highest confidence item
 
+            // Collect and deduplicate (keep max confidence per unique label)
             response.segmentation_results?.forEach { segment ->
                 segment.recognition_results?.forEach { item ->
+                    val label = item.name?.lowercase() ?: "Unknown food"  // Normalize case for dedup
                     val prob = item.prob ?: 0f
                     if (prob >= confidenceThreshold) {
-                        results.add(DetectedFood(label = item.name ?: "Unknown food", confidence = prob))
+                        val existing = detectionsMap[label]
+                        if (existing == null || prob > existing.confidence) {
+                            detectionsMap[label] = DetectedFood(label.capitalize(), prob)
+                        }
                     }
                 }
             }
 
-            if (results.isEmpty()) {
+            // Fallback
+            if (detectionsMap.isEmpty()) {
                 response.recognition_results?.forEach { item ->
+                    val label = item.name?.lowercase() ?: "Unknown food"
                     val prob = item.prob ?: 0f
                     if (prob >= confidenceThreshold) {
-                        results.add(DetectedFood(label = item.name ?: "Unknown food", confidence = prob))
+                        val existing = detectionsMap[label]
+                        if (existing == null || prob > existing.confidence) {
+                            detectionsMap[label] = DetectedFood(label.capitalize(), prob)
+                        }
                     }
                 }
             }
 
-            results.sortedByDescending { it.confidence }
+            // Sort unique by confidence, return top 3 for display (top 4 stored for USDA later)
+            val sortedUnique = detectionsMap.values.sortedByDescending { it.confidence }
+           // top4FoodsForUsda = sortedUnique.take(4)  // For USDA later
+            sortedUnique.take(3)
+
         } catch (e: retrofit2.HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: "Unknown"
             Log.e("LOGMEAL_ERROR", "HTTP ${e.code()} - Body: $errorBody")
@@ -130,14 +147,23 @@ class CameraViewModel : ViewModel() {
             emptyList()
         }
     }
+
+    fun freezeImageAndStartAnalyzing(photoUri: Uri) {
+        _uiState.value = CameraUiState.FrozenAnalyzing(photoUri)
+    }
+
+    fun setError(message: String) {
+        _uiState.value = CameraUiState.Error(message)
+    }
 }
 
 // UI State
 sealed class CameraUiState {
     object Idle : CameraUiState()
-    object Loading : CameraUiState()
+    object Loading : CameraUiState()  // Keep for general loading
+
+    data class FrozenAnalyzing(val photoUri: Uri) : CameraUiState()  // New: Frozen image + spinner
     data class FoodDetected(val photoUri: Uri, val detections: List<DetectedFood>) : CameraUiState()
     data class Error(val message: String) : CameraUiState()
 }
-
 data class DetectedFood(val label: String, val confidence: Float)
