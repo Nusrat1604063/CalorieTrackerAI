@@ -106,66 +106,70 @@ fun CameraScreen(
             is CameraUiState.FoodDetected -> {
                 val detections = (uiState as CameraUiState.FoodDetected).detections
 
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Image(
-                        painter = rememberAsyncImagePainter((uiState as CameraUiState.FoodDetected).photoUri),
-                        contentDescription = "Captured food photo",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                // Professional results card with nutrition summary
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+                        .padding(vertical = 20.dp, horizontal = 20.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Nutrition Summary (only if available)
+                        val nutrition = (uiState as CameraUiState.FoodDetected).nutritionSummary
 
-                    // Placeholder for future bounding boxes
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        // TODO: Draw bounding boxes and labels here later
-                    }
+                        Text(
+                            text = "Estimated Calories: ${nutrition?.calories ?: 0} kcal",
+                            color = Color(0xFF81C784),
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Protein: ${nutrition?.proteinGrams?.toInt() ?: 0}g • " +
+                                    "Carbs: ${nutrition?.carbsGrams?.toInt() ?: 0}g • " +
+                                    "Fat: ${nutrition?.fatGrams?.toInt() ?: 0}g",
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                        Spacer(Modifier.height(20.dp))
 
-                    // Professional results card
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
-                            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = "Detected Foods",
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.align(Alignment.CenterHorizontally)
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            detections.forEachIndexed { index, food ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "${index + 1}. ${food.label}",
-                                        color = Color.White,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        text = "${(food.confidence * 100).toInt()}% confidence",
-                                        color = Color(0xFF81C784),
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-                            if (detections.isEmpty()) {
+                        // Detected Foods List
+                        Text(
+                            text = "Detected Foods",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(12.dp))
+
+                        detections.forEachIndexed { index, food ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
                                 Text(
-                                    text = "No food detected",
-                                    color = Color.Gray,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    text = "${index + 1}. ${food.label}",
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "${(food.confidence * 100).toInt()}% confidence",
+                                    color = Color(0xFF81C784),
+                                    fontSize = 16.sp
                                 )
                             }
+                        }
+
+                        if (detections.isEmpty()) {
+                            Text(
+                                text = "No food detected",
+                                color = Color.Gray,
+                                fontSize = 16.sp
+                            )
                         }
                     }
                 }

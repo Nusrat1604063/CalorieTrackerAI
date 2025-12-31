@@ -34,6 +34,9 @@ import android.Manifest
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.google.accompanist.permissions.shouldShowRationale
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -83,21 +86,39 @@ fun HomeScreen(onNavigateToCamera: () -> Unit) {
     }
 }
 
+
+
 @Composable
 fun HelloThereCard() {
+    var currentDate by remember { mutableStateOf(LocalDate.now()) }
+
+    val dayOfWeek = currentDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    val monthName = currentDate.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    val dayOfMonth = currentDate.dayOfMonth
+    val year = currentDate.year
+
+    // Calculate the Monday of the current week
+    val mondayOfWeek = currentDate.minusDays(currentDate.dayOfWeek.value - 1L) // value: 1=Mon ... 7=Sun
+    val weekDays = (0..6).map { dayOffset ->
+        mondayOfWeek.plusDays(dayOffset.toLong()).dayOfMonth.toString()
+    }
+
+    val weekdays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    val todayIndex = currentDate.dayOfWeek.value - 1 // 0 = Mon, 6 = Sun
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
+            .padding(horizontal = 20.dp, vertical = 1.dp),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF19443C).copy(alpha = 0.85f) // Professional deep teal-green
+            containerColor = Color(0xFF19443C).copy(alpha = 0.85f)
         ),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(
             modifier = Modifier
-                .padding(start = 24.dp, top = 28.dp, bottom = 28.dp, end = 24.dp)
+                .padding(start = 24.dp, top = 12.dp, bottom = 28.dp, end = 12.dp)
         ) {
             // Greeting + waving emoji
             Row(
@@ -105,7 +126,7 @@ fun HelloThereCard() {
             ) {
                 Text(
                     text = "Hello there",
-                    fontSize = 20.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                     letterSpacing = 0.5.sp
@@ -116,33 +137,24 @@ fun HelloThereCard() {
                 )
             }
 
-            Spacer(modifier = Modifier.height(3.dp))
 
-            // Today's date
-            Text(
-                text = "Tuesday, December 16",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFFB2DFDB), // Soft light green for secondary text
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(15.dp)) // Your requested gap
-
-            // Month + Year with dropdown
+            // Month + Year - now dynamic
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "December 2025",
+                    text = "$monthName $year",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFFB2DFDB)
                 )
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
+                    contentDescription = "Select month",
                     tint = Color(0xFFB2DFDB),
                     modifier = Modifier.size(15.dp)
                 )
@@ -150,15 +162,12 @@ fun HelloThereCard() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Calendar row - days 15 to 21 (Dec 15 Mon → Dec 21 Sun)
+            // Calendar row - 7 days of the week, with today highlighted
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                val days = listOf("15", "16", "17", "18", "19", "20", "21")
-                val weekdays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-
-                days.forEachIndexed { index, day ->
+                weekDays.forEachIndexed { index, day ->
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.weight(1f)
@@ -166,14 +175,14 @@ fun HelloThereCard() {
                         Text(
                             text = weekdays[index],
                             fontSize = 10.sp,
-                            color = if (index == 1) Color(0xFF4DB6AC) else Color(0xFF80CBC4), // Highlight Tue
+                            color = if (index == todayIndex) Color(0xFF4DB6AC) else Color(0xFF80CBC4)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
                                 .background(
-                                    if (index == 1) Color(0xFF4DB6AC) else Color.Transparent, // Highlight 16
+                                    color = if (index == todayIndex) Color(0xFF4DB6AC) else Color.Transparent,
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center

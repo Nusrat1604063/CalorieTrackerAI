@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calorietrack.utlity.bitmapToBase64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -33,6 +34,11 @@ class CameraViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<CameraUiState>(CameraUiState.Idle)
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
+
+    private var top4FoodsForUsda: List<DetectedFood> = emptyList()
+
+
+
     fun detectFoodFromImage(context: Context, photoUri: Uri) {
         viewModelScope.launch {
             val bitmap = withContext(Dispatchers.IO) {
@@ -44,23 +50,30 @@ class CameraViewModel : ViewModel() {
                 return@launch
             }
 
-            val results = withContext(Dispatchers.IO) {
+            val outcome = withContext(Dispatchers.IO) {
                 runFoodRecognitionModel(context, bitmap)
             }
 
-            if (results.isEmpty()) {
-                setError("No food detected")
-                return@launch
+            when (outcome) {
+                is RecognitionOutcome.Success -> {
+                    // Optional delay to keep spinner visible longer (for better UX)
+                    delay(2000L)  // Adjust or remove as needed
+
+                    _uiState.value = CameraUiState.FoodDetected(
+                        photoUri = photoUri,
+                        detections = outcome.detections,  // top 3 unique
+                        nutritionSummary = outcome.nutritionSummary
+                    )
+                }
+
+                is RecognitionOutcome.Failure -> {
+                    setError("No food detected or analysis failed")
+                }
             }
-
-            // Optional: Add delay for longer "Calculating calories..." spinner
-            delay(3000L)  // 3 seconds (adjust or remove as needed)
-
-            _uiState.value = CameraUiState.FoodDetected(photoUri, results)
         }
     }
 
-    private suspend fun runFoodRecognitionModel(context: Context, originalBitmap: Bitmap): List<DetectedFood> {
+    private suspend fun runFoodRecognitionModel(context: Context, originalBitmap: Bitmap): RecognitionOutcome {
         return try {
             val client = OkHttpClient.Builder()
                 .addInterceptor { chain ->
@@ -135,18 +148,141 @@ class CameraViewModel : ViewModel() {
 
             // Sort unique by confidence, return top 3 for display (top 4 stored for USDA later)
             val sortedUnique = detectionsMap.values.sortedByDescending { it.confidence }
-           // top4FoodsForUsda = sortedUnique.take(4)  // For USDA later
-            sortedUnique.take(3)
+            if (sortedUnique.isEmpty()) {
+                return RecognitionOutcome.Failure
+            }
+            top4FoodsForUsda = sortedUnique.take(4)  // For USDA later
+            val nutritionSummary = calculateNutritionFromDetectedFoods(top4FoodsForUsda)
+
+
+            RecognitionOutcome.Success(
+                detections = sortedUnique.take(3),
+                nutritionSummary = nutritionSummary
+            )
 
         } catch (e: retrofit2.HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: "Unknown"
             Log.e("LOGMEAL_ERROR", "HTTP ${e.code()} - Body: $errorBody")
-            emptyList()
+            RecognitionOutcome.Failure
         } catch (e: Exception) {
             Log.e("LOGMEAL_ERROR", e.message ?: "Unknown error", e)
-            emptyList()
+            RecognitionOutcome.Failure
         }
     }
+
+    private suspend fun calculateNutritionFromDetectedFoods(
+        foods: List<DetectedFood>
+    ): NutritionSummary {
+
+        // --- 1. Very small LOCAL fallback (see: guaranteed result) ---
+        val localNutrition = mapOf(
+            "tomato" to NutritionSummary(18, 0.9f, 0.2f, 3.9f),
+            "onion" to NutritionSummary(40, 1.1f, 0.1f, 9.3f),
+            "pineapple" to NutritionSummary(50, 0.5f, 0.1f, 13.1f),
+            "ketchup" to NutritionSummary(112, 1.3f, 0.2f, 26f)
+        )
+
+        fun normalize(label: String): String {
+            return label.lowercase()
+                .replace(Regex("\\(.*?\\)"), "")
+                .replace("raw", "")
+                .replace("fresh", "")
+                .replace("sauce", "")
+                .trim()
+        }
+
+        var totalCalories = 0f
+        var totalProtein = 0f
+        var totalFat = 0f
+        var totalCarbs = 0f
+
+        // --- 2. Setup USDA once ---
+        val usdaRetrofit = Retrofit.Builder()
+            .baseUrl("https://api.nal.usda.gov/fdc/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        val usdaService = usdaRetrofit.create(UsdaApi::class.java)
+        val usdaApiKey = "DEMO_KEY"
+
+        for (food in foods) {
+            val key = normalize(food.label)
+            Log.i("USDA_DEBUG", "Processing food: $key")
+
+            // --- 3. LOCAL FIRST (always works) ---
+            val local = localNutrition[key]
+
+            if (local != null) {
+                totalCalories += local.calories
+                totalProtein += local.proteinGrams
+                totalFat += local.fatGrams
+                totalCarbs += local.carbsGrams
+                Log.i("USDA_DEBUG", "Used local nutrition for $key")
+                continue
+            }
+
+            // --- 4. USDA BEST-EFFORT (may fail, doesn’t break app) ---
+            try {
+                delay(1200) // respect rate limit
+
+                val search = usdaService.searchFoods(
+                    query = key,
+                    apiKey = usdaApiKey,
+                    pageSize = 5
+                )
+
+                val best = search.foods.firstOrNull() ?: continue
+                val details = usdaService.getFoodDetails(best.fdcId, usdaApiKey)
+
+                var calories = 0f
+                var protein = 0f
+                var fat = 0f
+                var carbs = 0f
+
+                details.foodNutrients.forEach { n ->
+                    when (n.nutrientId) {
+                        1008, 2047, 2048 -> calories += n.amount ?: 0f
+                        1003, 203 -> protein += n.amount ?: 0f
+                        1004, 204 -> fat += n.amount ?: 0f
+                        1005, 205 -> carbs += n.amount ?: 0f
+                    }
+                }
+
+                // fallback to label nutrients
+                details.labelNutrients?.let {
+                    calories += it.calories?.value ?: 0f
+                    protein += it.protein?.value ?: 0f
+                    fat += it.fat?.value ?: 0f
+                    carbs += it.carbohydrates?.value ?: 0f
+                }
+
+                // USDA sometimes returns per 100g — clamp sanity
+                if (calories > 0) {
+                    totalCalories += calories
+                    totalProtein += protein
+                    totalFat += fat
+                    totalCarbs += carbs
+                    Log.i("USDA_DEBUG", "USDA success for $key")
+                }
+
+            } catch (e: Exception) {
+                Log.e("USDA_DEBUG", "USDA failed for $key: ${e.message}")
+            }
+        }
+
+        // --- 5. Absolute safety net ---
+        if (totalCalories == 0f) {
+            totalCalories = foods.size * 50f // basic estimate
+        }
+
+        return NutritionSummary(
+            calories = totalCalories.toInt(),
+            proteinGrams = totalProtein,
+            fatGrams = totalFat,
+            carbsGrams = totalCarbs
+        )
+    }
+
 
     fun freezeImageAndStartAnalyzing(photoUri: Uri) {
         _uiState.value = CameraUiState.FrozenAnalyzing(photoUri)
@@ -163,7 +299,17 @@ sealed class CameraUiState {
     object Loading : CameraUiState()  // Keep for general loading
 
     data class FrozenAnalyzing(val photoUri: Uri) : CameraUiState()  // New: Frozen image + spinner
-    data class FoodDetected(val photoUri: Uri, val detections: List<DetectedFood>) : CameraUiState()
+    data class FoodDetected(val photoUri: Uri, val detections: List<DetectedFood>, val nutritionSummary: NutritionSummary? = null) : CameraUiState()
     data class Error(val message: String) : CameraUiState()
+}
+
+
+sealed class RecognitionOutcome {
+    data class Success(
+        val detections: List<DetectedFood>,  // top 3 for display
+        val nutritionSummary: NutritionSummary
+    ) : RecognitionOutcome()
+
+    object Failure : RecognitionOutcome()
 }
 data class DetectedFood(val label: String, val confidence: Float)
