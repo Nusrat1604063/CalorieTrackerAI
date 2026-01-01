@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import data.datastore.AppPreferences
+import data.datastore.UserProfileDataStore
 import data.datastore.UserProfileKeys
 import data.datastore.dataStore
 import data.datastore.model.UserProfile
@@ -86,10 +88,9 @@ class UserSetupViewModel : ViewModel() {
         )
     }
 
-    fun saveAndLogUserProfile(context: Context, profile: UserProfile) {
+    fun saveUserProfileOnly(context: Context, profile: UserProfile) {
         viewModelScope.launch(Dispatchers.IO) {
-            // Save to DataStore
-            context.dataStore.edit { prefs ->
+            context.UserProfileDataStore.edit { prefs ->
                 prefs[UserProfileKeys.GENDER] = profile.gender
                 prefs[UserProfileKeys.AGE] = profile.age
                 prefs[UserProfileKeys.HEIGHT_CM] = profile.heightCm
@@ -98,20 +99,19 @@ class UserSetupViewModel : ViewModel() {
                 prefs[UserProfileKeys.CALORIE_GOAL] = profile.calorieGoal
                 prefs[UserProfileKeys.CREATED_AT] = System.currentTimeMillis()
             }
-
-            // Read back once and log
-            val savedProfile = context.dataStore.data.firstOrNull()?.let { prefs ->
-                UserProfile(
-                    gender = prefs[UserProfileKeys.GENDER] ?: profile.gender,
-                    age = prefs[UserProfileKeys.AGE] ?: profile.age,
-                    heightCm = prefs[UserProfileKeys.HEIGHT_CM] ?: profile.heightCm,
-                    weightKg = prefs[UserProfileKeys.WEIGHT_KG] ?: profile.weightKg,
-                    activityLevel = prefs[UserProfileKeys.ACTIVITY_LEVEL] ?: profile.activityLevel,
-                    calorieGoal = prefs[UserProfileKeys.CALORIE_GOAL] ?: profile.calorieGoal
-                )
-            }
-            Log.d("UserProfile", "Saved profile: $savedProfile")
+            Log.d("UserProfile", "Profile saved (but setup not marked complete yet)")
         }
     }
+
+    // Only mark onboarding as finished
+    fun markSetupComplete(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            context.dataStore.edit { prefs ->
+                prefs[AppPreferences.SETUP_DONE] = true
+            }
+            Log.d("Onboarding", "Setup marked as complete!")
+        }
+    }
+
 
 }

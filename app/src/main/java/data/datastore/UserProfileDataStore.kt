@@ -26,16 +26,17 @@ object UserProfileKeys {
 }
 
 
-fun saveUserProfile(context: Context, profile: UserProfile) {
-    CoroutineScope(Dispatchers.IO).launch {
-        context.dataStore.edit { prefs ->
-            prefs[UserProfileKeys.GENDER] = profile.gender
-            prefs[UserProfileKeys.AGE] = profile.age
-            prefs[UserProfileKeys.HEIGHT_CM] = profile.heightCm
-            prefs[UserProfileKeys.WEIGHT_KG] = profile.weightKg
-            prefs[UserProfileKeys.ACTIVITY_LEVEL] = profile.activityLevel
-            prefs[UserProfileKeys.CALORIE_GOAL] = profile.calorieGoal
-            prefs[UserProfileKeys.CREATED_AT] = System.currentTimeMillis()
-        }
-    }
-}
+
+//fun saveUserProfile(context: Context, profile: UserProfile) {
+//    CoroutineScope(Dispatchers.IO).launch {
+//        context.dataStore.edit { prefs ->
+//            prefs[UserProfileKeys.GENDER] = profile.gender
+//            prefs[UserProfileKeys.AGE] = profile.age
+//            prefs[UserProfileKeys.HEIGHT_CM] = profile.heightCm
+//            prefs[UserProfileKeys.WEIGHT_KG] = profile.weightKg
+//            prefs[UserProfileKeys.ACTIVITY_LEVEL] = profile.activityLevel
+//            prefs[UserProfileKeys.CALORIE_GOAL] = profile.calorieGoal
+//            prefs[UserProfileKeys.CREATED_AT] = System.currentTimeMillis()
+//        }
+//    }
+//}

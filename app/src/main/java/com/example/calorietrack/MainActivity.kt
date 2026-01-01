@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,17 +22,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CalorieTrackTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AppNavHost()
-                   //HomeScreen()
-//                    CameraScreen(onBack = {},
-//                        onPhotoCaptured = { savedUri : Uri ->
-//                            Log.d("Camera", "Photo saved at: $savedUri")
-//                        }
-//                        )
-
-
-
+                CalorieTrackTheme {
+                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                        AppNavHost(modifier = Modifier.padding(innerPadding))
+                    }
                 }
             }
         }

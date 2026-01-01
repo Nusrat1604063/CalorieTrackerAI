@@ -33,6 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import com.example.calorietrack.Navigation.AppScreen
 import com.example.calorietrack.R
 import data.datastore.AppPreferences
 import data.datastore.dataStore
@@ -44,8 +47,12 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun AllSetScreen(
-    onContinue: () -> Unit) {
+    onContinue: () -> Unit,                    // You can keep this if other code uses it
+    navController: NavHostController,
+    viewModel: UserSetupViewModel = viewModel()
+) {
     val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,11 +69,7 @@ fun AllSetScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-
-
-        // Animate from 0 → 0.75
         val progress = remember { Animatable(0.75f) }
-
         LaunchedEffect(Unit) {
             progress.animateTo(
                 targetValue = 1f,
@@ -90,10 +93,8 @@ fun AllSetScreen(
             )
         }
 
-
-
-
         Spacer(modifier = Modifier.height(40.dp))
+
         Text(
             text = "YOU’RE ALL SET 🎉",
             fontSize = 26.sp,
@@ -118,15 +119,17 @@ fun AllSetScreen(
             fontWeight = FontWeight.Medium
         )
 
-       Spacer(modifier = Modifier.height(40.dp))
-        Column(modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(modifier = Modifier.height(40.dp))
 
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             val alpha = remember { Animatable(0f) }
-
             LaunchedEffect(Unit) {
                 alpha.animateTo(1f, animationSpec = tween(1200))
             }
+
             Image(
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = "App Logo",
@@ -143,18 +146,22 @@ fun AllSetScreen(
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
             )
-
         }
 
-
         Spacer(modifier = Modifier.height(240.dp))
-                Button(
+
+        Button(
             onClick = {
-                CoroutineScope(Dispatchers.IO).launch {
-                   setupCompleted(context)
-                    val value = context.dataStore.data.first()[AppPreferences.SETUP_DONE]
-                    Log.d("DataStore", "setup_done = $value")
+                // Mark onboarding as complete (fire-and-forget is fine here)
+                viewModel.markSetupComplete(context)
+
+                // Navigate to Home and remove ALL onboarding screens from backstack
+                navController.navigate(AppScreen.Home.routes) {
+                    popUpTo(AppScreen.ScreenOne.routes) { inclusive = true }
+                    launchSingleTop = true
                 }
+
+                // Optional: if something else relies on onContinue, keep it
                 onContinue()
             },
             modifier = Modifier
@@ -174,15 +181,10 @@ fun AllSetScreen(
                 fontWeight = FontWeight.SemiBold
             )
         }
-
     }
-
-
-
 }
-
 @Preview(showBackground = true)
 @Composable()
 fun Allset() {
-    AllSetScreen(onContinue = {})
+   // AllSetScreen(onContinue = {})
 }

@@ -1,5 +1,6 @@
 package com.example.calorietrack.Presentation
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 
 
@@ -34,7 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -132,9 +136,13 @@ fun PersonalDetailsWithProgressScreen(
                     weightKg = weight!!,
                     activityLevel = activity)
                 //saveUserProfile(context, profile)
-                viewModel.saveAndLogUserProfile(context, profile)
+                Log.d("UserProfile", "Built profile: $profile")
+                Log.d("UserProfile", profile.toString())
+                //viewModel.(context, profile)
+                viewModel.saveUserProfileOnly(context, profile)
 
                 onContinue()        //trigger navigatiopn
+
             },
             modifier = Modifier
                 .fillMaxWidth()
