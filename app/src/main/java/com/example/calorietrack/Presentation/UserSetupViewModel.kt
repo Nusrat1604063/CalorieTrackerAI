@@ -7,12 +7,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import data.datastore.AppPreferences
-import data.datastore.UserProfileDataStore
 import data.datastore.UserProfileKeys
 import data.datastore.dataStore
 import data.datastore.model.UserProfile
+import data.datastore.userProfileDataStore
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -90,7 +89,7 @@ class UserSetupViewModel : ViewModel() {
 
     fun saveUserProfileOnly(context: Context, profile: UserProfile) {
         viewModelScope.launch(Dispatchers.IO) {
-            context.UserProfileDataStore.edit { prefs ->
+            context.userProfileDataStore.edit { prefs ->
                 prefs[UserProfileKeys.GENDER] = profile.gender
                 prefs[UserProfileKeys.AGE] = profile.age
                 prefs[UserProfileKeys.HEIGHT_CM] = profile.heightCm
@@ -99,6 +98,7 @@ class UserSetupViewModel : ViewModel() {
                 prefs[UserProfileKeys.CALORIE_GOAL] = profile.calorieGoal
                 prefs[UserProfileKeys.CREATED_AT] = System.currentTimeMillis()
             }
+            Log.d("DataStore", "Saved calorieGoal: ${profile.calorieGoal}")
             Log.d("UserProfile", "Profile saved (but setup not marked complete yet)")
         }
     }

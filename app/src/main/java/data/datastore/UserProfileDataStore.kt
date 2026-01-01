@@ -9,10 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-val Context.UserProfileDataStore by preferencesDataStore(
-    name = "user_profile_prefs"
-)
-
+//val Context.userProfileDataStore by preferencesDataStore(name = "user_profile")
 
 object UserProfileKeys {
 

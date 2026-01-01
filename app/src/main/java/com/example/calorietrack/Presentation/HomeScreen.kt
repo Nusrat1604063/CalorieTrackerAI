@@ -32,7 +32,10 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 
 import android.Manifest
 import android.widget.Toast
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.calorietrack.Home.CalorieViewModel
 import com.google.accompanist.permissions.shouldShowRationale
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -204,19 +207,21 @@ fun HelloThereCard() {
 //#35554F -- calm Sage Teal
 @Composable
 fun DailySummaryCard() {
+    val viewModel: CalorieViewModel = viewModel()
+    val state by viewModel.uiState.collectAsState()
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 6.dp),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF045).copy(alpha = .4f)
+            containerColor = Color(0xFF004D40).copy(alpha = 0.4f)
         ),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(
-            modifier = Modifier
-                .padding(start = 24.dp, top = 20.dp, bottom = 20.dp, end = 24.dp)
+            modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 20.dp, end = 24.dp)
         ) {
             Text(
                 text = "Daily Summary",
@@ -232,59 +237,44 @@ fun DailySummaryCard() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: Circular progress ring
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(120.dp)
-                ) {
+                // Progress Ring
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
                     Canvas(modifier = Modifier.size(120.dp)) {
                         val strokeWidth = 20f
                         val radius = size.minDimension / 2 - strokeWidth / 2
 
-                        // Full gray track
+                        // Background track
                         drawCircle(
                             color = Color(0xFF555555),
                             radius = radius,
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            style = Stroke(strokeWidth, cap = StrokeCap.Round)
                         )
 
-                        val progress = 0.76f // Adjust as needed (e.g., 76% consumed → 24% left)
+                        // Progress arc
                         drawArc(
                             color = Color(0xFFFF6B6B),
                             startAngle = 30f,
-                            sweepAngle = 360f * progress,
+                            sweepAngle = 360f * state.progress,
                             useCenter = false,
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            style = Stroke(strokeWidth, cap = StrokeCap.Round)
                         )
                     }
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "300",
+                            text = "${state.left}",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
-                        Text(
-                            text = "Cal",
-                            fontSize = 16.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Left",
-                            fontSize = 14.sp,
-                            color = Color(0xFFAAAAAA)
-                        )
+                        Text("Cal", fontSize = 16.sp, color = Color.White)
+                        Text("Left", fontSize = 14.sp, color = Color(0xFFAAAAAA))
                     }
                 }
 
                 Spacer(modifier = Modifier.width(24.dp))
 
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Recommended",
                         fontSize = 16.sp,
@@ -292,7 +282,7 @@ fun DailySummaryCard() {
                         color = Color(0xFFB2DFDB)
                     )
                     Text(
-                        text = "1400 calories",
+                        text = "${state.recommended} calories",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -300,11 +290,12 @@ fun DailySummaryCard() {
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                   //Dummy for now...
                     MacroProgressBar(label = "Protein", progress = 0.75f, color = Color(0xFF4FC3F7))
                     Spacer(modifier = Modifier.height(10.dp))
-                    MacroProgressBar(label = "Fat",       progress = 0.55f, color = Color(0xFFFFD54F))
+                    MacroProgressBar(label = "Fat", progress = 0.55f, color = Color(0xFFFFD54F))
                     Spacer(modifier = Modifier.height(10.dp))
-                    MacroProgressBar(label = "Carbs",     progress = 0.40f, color = Color(0xFF81C784))
+                    MacroProgressBar(label = "Carbs", progress = 0.40f, color = Color(0xFF81C784))
                 }
             }
         }
