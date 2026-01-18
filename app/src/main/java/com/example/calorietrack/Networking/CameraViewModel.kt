@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calorietrack.utlity.bitmapToBase64
+import com.google.android.gms.common.data.FreezableUtils.freeze
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.io.FileOutputStream
-
 class CameraViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow<CameraUiState>(CameraUiState.Idle)
@@ -36,6 +36,65 @@ class CameraViewModel : ViewModel() {
 
 
     private var top4FoodsForUsda: List<DetectedFood> = emptyList()
+
+
+    fun onImageCaptured(context: Context, photoUri: Uri) {
+        freeze(photoUri)
+        analyzeImage(context, photoUri)
+    }
+
+    fun onCaptureFailed() {
+        setError("Capture failed. Please try again.")
+    }
+
+    fun resetToIdle() {
+        _uiState.value = CameraUiState.Idle
+    }
+
+
+    //INTERNAL FLOW (VIEWMODEL DECIDES STATE)
+
+    private fun analyzeImage(context: Context, photoUri: Uri) {
+        viewModelScope.launch {
+
+            val bitmap = loadBitmap(context, photoUri)
+            if (bitmap == null) {
+                setError("Failed to load image")
+                return@launch
+            }
+
+            val outcome = withContext(Dispatchers.IO) {
+                runFoodRecognitionModel(context, bitmap)
+            }
+
+            when (outcome) {
+                is RecognitionOutcome.Success -> {
+                    // Optional UX delay (remove if you want)
+                    delay(800)
+
+                    _uiState.value = CameraUiState.FoodDetected(
+                        photoUri = photoUri,
+                        detections = outcome.detections,
+                        nutritionSummary = outcome.nutritionSummary
+                    )
+                }
+
+                RecognitionOutcome.Failure -> {
+                    setError("No food detected or analysis failed")
+                }
+            }
+        }
+    }
+
+    private suspend fun loadBitmap(
+        context: Context,
+        uri: Uri
+    ): Bitmap? = withContext(Dispatchers.IO) {
+        BitmapFactory.decodeStream(
+            context.contentResolver.openInputStream(uri)
+        )
+    }
+
 
 
 
@@ -78,7 +137,7 @@ class CameraViewModel : ViewModel() {
             val client = OkHttpClient.Builder()
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()
-                        .addHeader("Authorization", "Bearer d7b92241e3f0b7c1459f99c2a6deaeef8bda2051")  // Your real token
+                        .addHeader("Authorization", "Bearer d7b92241e3f0b7c1459f99c2a6deaeef8bda2051")  // token
                         .build()
                     chain.proceed(request)
                 }
@@ -174,7 +233,7 @@ class CameraViewModel : ViewModel() {
         foods: List<DetectedFood>
     ): NutritionSummary {
 
-        // --- 1. Very small LOCAL fallback (see: guaranteed result) ---
+        // LOCAL fallback
         val localNutrition = mapOf(
             "tomato" to NutritionSummary(18, 0.9f, 0.2f, 3.9f),
             "onion" to NutritionSummary(40, 1.1f, 0.1f, 9.3f),
@@ -291,6 +350,15 @@ class CameraViewModel : ViewModel() {
     fun setError(message: String) {
         _uiState.value = CameraUiState.Error(message)
     }
+
+    private fun freeze(photoUri: Uri) {
+        _uiState.value = CameraUiState.FrozenAnalyzing(photoUri)
+    }
+
+
+
+
+
 }
 
 // UI State
@@ -313,3 +381,4 @@ sealed class RecognitionOutcome {
     object Failure : RecognitionOutcome()
 }
 data class DetectedFood(val label: String, val confidence: Float)
+
