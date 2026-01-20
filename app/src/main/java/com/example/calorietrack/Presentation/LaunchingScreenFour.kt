@@ -37,13 +37,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.calorietrack.Navigation.AppScreen
 import com.example.calorietrack.R
-import data.datastore.AppPreferences
-import data.datastore.dataStore
-import data.datastore.setupCompleted
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 @Composable
 fun AllSetScreen(

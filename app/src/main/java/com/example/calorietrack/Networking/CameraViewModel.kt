@@ -11,6 +11,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calorietrack.utlity.bitmapToBase64
 import com.google.android.gms.common.data.FreezableUtils.freeze
+import data.datastore.Room.ScannedMealRepository
+import data.datastore.model.ScannedMeal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,18 +31,20 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.io.FileOutputStream
-class CameraViewModel : ViewModel() {
+import javax.inject.Inject
+
+class CameraViewModel () : ViewModel() {
+
+    private var mealSaved = false
 
     private val _uiState = MutableStateFlow<CameraUiState>(CameraUiState.Idle)
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
-
     private var top4FoodsForUsda: List<DetectedFood> = emptyList()
+    private var scannedMealRepository: ScannedMealRepository? = null
 
-
-    fun onImageCaptured(context: Context, photoUri: Uri) {
-        freeze(photoUri)
-        analyzeImage(context, photoUri)
+    fun setRepository(repo: ScannedMealRepository) {
+        scannedMealRepository = repo
     }
 
     fun onCaptureFailed() {
@@ -65,12 +69,39 @@ class CameraViewModel : ViewModel() {
 
             val outcome = withContext(Dispatchers.IO) {
                 runFoodRecognitionModel(context, bitmap)
+
             }
 
             when (outcome) {
                 is RecognitionOutcome.Success -> {
                     // Optional UX delay (remove if you want)
-                    delay(800)
+                    delay(500)
+
+                    if (!mealSaved) {
+                        val meal = ScannedMeal(
+                            id = 0,
+                            name = outcome.detections.joinToString { it.label },
+                            calories = outcome.nutritionSummary.calories,
+                            imageUrl = photoUri.toString()
+                        )
+
+                        // Launch coroutine to save
+                       viewModelScope.launch {
+                            scannedMealRepository?.saveMeal(meal)
+                            Log.d("ScanHistory", "Saved meal: ${meal.name}, Calories: ${meal.calories}")
+
+                            // Optional: print all today's meals
+                            scannedMealRepository?.todayMeals()?.collect { meals ->
+                                Log.d("ScanHistory", "Today's meals in DB:")
+                                meals.forEach {
+                                    Log.d("ScanHistory", "- ${it.name}: ${it.calories} Cal")
+                                }
+                            }
+                        }
+
+                        mealSaved = true
+                    }
+
 
                     _uiState.value = CameraUiState.FoodDetected(
                         photoUri = photoUri,
@@ -120,9 +151,26 @@ class CameraViewModel : ViewModel() {
 
                     _uiState.value = CameraUiState.FoodDetected(
                         photoUri = photoUri,
-                        detections = outcome.detections,  // top 3 unique
+                        detections = outcome.detections,
                         nutritionSummary = outcome.nutritionSummary
                     )
+
+                    // ---- SAVE MEAL HERE ----
+                    if (!mealSaved) {
+                        val meal = ScannedMeal(
+                            id = 0,
+                            name = outcome.detections.joinToString { it.label },
+                            calories = outcome.nutritionSummary.calories,
+                            imageUrl = photoUri.toString()
+                        )
+
+                        viewModelScope.launch {
+                            scannedMealRepository?.saveMeal(meal)
+                            Log.d("ScanHistory", "Saved meal: ${meal.name}, Calories: ${meal.calories}")
+                        }
+
+                        mealSaved = true
+                    }
                 }
 
                 is RecognitionOutcome.Failure -> {
@@ -342,6 +390,9 @@ class CameraViewModel : ViewModel() {
         )
     }
 
+    fun onNewCapture() {
+        mealSaved = false
+    }
 
     fun freezeImageAndStartAnalyzing(photoUri: Uri) {
         _uiState.value = CameraUiState.FrozenAnalyzing(photoUri)

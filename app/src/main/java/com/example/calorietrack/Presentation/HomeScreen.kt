@@ -37,6 +37,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calorietrack.Home.CalorieViewModel
 import com.google.accompanist.permissions.shouldShowRationale
+import data.datastore.Room.AppDatabase
+import data.datastore.Room.ScanHistoryViewModel
+import data.datastore.Room.ScannedMealRepository
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -45,11 +48,24 @@ import java.util.Locale
 @Composable
 fun HomeScreen(onNavigateToCamera: () -> Unit) {
     var selectedTab by remember { mutableStateOf(BottomBarTab.Home) }
+
     val context = LocalContext.current
+    val db = remember {
+        AppDatabase.getInstance(context)
+    }
 
     val cameraPermissionState = rememberPermissionState(
         permission = android.Manifest.permission.CAMERA
     )
+    val repository = remember {
+        ScannedMealRepository(db.scannedMealDao())
+    }
+
+    val viewModel = remember {
+        ScanHistoryViewModel(repository)
+    }
+
+    val meals by viewModel.todayMeals.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -63,7 +79,7 @@ fun HomeScreen(onNavigateToCamera: () -> Unit) {
             HelloThereCard()
             DailySummaryCard()
             WaterIntakeCard2()
-            MealScansCard()
+            MealScansCard(scannedMeals = meals)
         }
 
         FloatingBottomBar(

@@ -1,5 +1,6 @@
 import android.net.Uri
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -8,8 +9,10 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,8 +26,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -44,21 +49,35 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.calorietrack.Networking.CameraUiState
 import com.example.calorietrack.Networking.CameraViewModel
+import data.datastore.Room.AppDatabase
+import data.datastore.Room.ScannedMealRepository
 import java.io.File
 
 @Composable
 fun CameraScreen(
-viewModel: CameraViewModel = viewModel(),
     onBack: ()-> Unit
 ) {
     val context = LocalContext.current
+    val viewModel: CameraViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
-    val imageCapture = remember {
+    val db: AppDatabase = remember { AppDatabase.getInstance(context) }
+    val repository: ScannedMealRepository = remember { ScannedMealRepository(db.scannedMealDao()) }
+
+    LaunchedEffect(Unit) {
+        viewModel.setRepository(repository)
+
+    }
+        val imageCapture = remember {
         ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .build()
     }
+
+    BackHandler(enabled = true) {
+        onBack()
+    }
+
 
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -79,7 +98,10 @@ viewModel: CameraViewModel = viewModel(),
         if (uiState is CameraUiState.FoodDetected) {
             FoodResultSheet(
                 uiState = uiState  as CameraUiState.FoodDetected,
-                onRetake = { viewModel.resetToIdle() }
+                onRetake = { viewModel.resetToIdle() },
+                onDone = {
+                    onBack()   // navigate back to Home
+                }
             )
         }
 
@@ -89,6 +111,7 @@ viewModel: CameraViewModel = viewModel(),
                 imageCapture = imageCapture,
                 onCaptureSuccess = { uri ->
                     // Immediately show frozen image
+                    viewModel.onNewCapture()
                     viewModel.freezeImageAndStartAnalyzing(uri)
                     // Start async detection
                     viewModel.detectFoodFromImage(context, uri)
@@ -229,7 +252,8 @@ fun AnalyzingOverlay() {
 @Composable
 fun FoodResultSheet(
     uiState: CameraUiState.FoodDetected,
-    onRetake: () -> Unit
+    onRetake: () -> Unit,
+    onDone: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -262,12 +286,25 @@ fun FoodResultSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = onRetake,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Retake")
+                OutlinedButton(
+                    onClick = onRetake,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Retake")
+                }
+
+                Button(
+                    onClick = onDone,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Done")
+                }
             }
+
         }
     }
 }
